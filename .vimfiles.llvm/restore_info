@@ -1,0 +1,10 @@
+badd tools/clang/lib/StaticAnalyzer/Checkers/YJYBranchChecker.cpp
+badd tools/clang/lib/StaticAnalyzer/Checkers/MemoryAccessChecker.cpp
+badd tools/clang/include/clang/StaticAnalyzer/Core/PathSensitive/CoreEngine.h
+badd tools/clang/lib/StaticAnalyzer/Core/CoreEngine.cpp
+badd tools/clang/include/clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h
+badd tools/clang/lib/StaticAnalyzer/Core/ExprEngine.cpp
+badd tools/clang/include/clang/Analysis/CFG.h
+badd tools/clang/lib/Analysis/CFG.cpp
+edit tools/clang/lib/StaticAnalyzer/Core/CoreEngine.cpp
+call cursor(302,1)
