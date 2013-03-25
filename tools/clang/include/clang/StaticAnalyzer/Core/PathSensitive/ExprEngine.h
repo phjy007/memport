@@ -191,17 +191,10 @@ public:
   /// ProcessSwitch - Called by CoreEngine.  Used to generate successor
   ///  nodes by processing the 'effects' of a switch statement.
   void processSwitch(SwitchNodeBuilder& builder);
-  /*MemPort Hack Code Begin**********************************************************************/
-  void processSwitchMemPort(SwitchNodeBuilder& builder);
-  /*MemPort Hack Code End**********************************************************************/
 
   /// ProcessEndPath - Called by CoreEngine.  Used to generate end-of-path
   ///  nodes when the control reaches the end of a function.
   void processEndOfFunction(NodeBuilderContext& BC);
-
-  /*MemPort Hack Code Begin*********************************************************************/
-  void processEndMemPort(NodeBuilderContext& BC);
-  /*MemPort Hack Code End**********************************************************************/
 
   /// Generate the entry node of the callee.
   void processCallEnter(CallEnter CE, ExplodedNode *Pred);

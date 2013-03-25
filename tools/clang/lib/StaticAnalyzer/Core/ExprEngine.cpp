@@ -1248,32 +1248,6 @@ void ExprEngine::processBranch(const Stmt *Condition, const Stmt *Term,
 
     DefinedSVal V = cast<DefinedSVal>(X);
 
-    //// Process the true branch.
-    //if (builder.isFeasible(true)) {
-    //  if (ProgramStateRef state = PrevState->assume(V, true))
-    //    builder.generateNode(MarkBranch(state, Term, LCtx, true),
-    //                         true, PredI);
-    //  else
-    //    builder.markInfeasible(true);
-    //}
-    //// Process the false branch.
-    //if (builder.isFeasible(false)) {
-    //  if (ProgramStateRef state = PrevState->assume(V, false))
-    //    builder.generateNode(MarkBranch(state, Term, LCtx, false),
-    //                         false, PredI);
-    //  else
-    //    builder.markInfeasible(false);
-    //}
-
-    /*MemPort Hack Code BEGIN**************************************************/
-    //Process the false branch.
-    if (builder.isFeasible(false)) {
-      if (ProgramStateRef state = PrevState->assume(V, false))
-        builder.generateNode(MarkBranch(state, Term, LCtx, false),
-                             false, PredI);
-      else
-        builder.markInfeasible(false);
-    }
     // Process the true branch.
     if (builder.isFeasible(true)) {
       if (ProgramStateRef state = PrevState->assume(V, true))
@@ -1282,7 +1256,14 @@ void ExprEngine::processBranch(const Stmt *Condition, const Stmt *Term,
       else
         builder.markInfeasible(true);
     }
-    /*MemPort Hack Code END****************************************************/
+    // Process the false branch.
+    if (builder.isFeasible(false)) {
+      if (ProgramStateRef state = PrevState->assume(V, false))
+        builder.generateNode(MarkBranch(state, Term, LCtx, false),
+                             false, PredI);
+      else
+        builder.markInfeasible(false);
+    }
 
   }
   currentBuilderContext = 0;
@@ -1340,15 +1321,6 @@ void ExprEngine::processEndOfFunction(NodeBuilderContext& BC) {
   getCheckerManager().runCheckersForEndPath(BC, Dst, *this);
   Engine.enqueueEndOfFunction(Dst);
 }
-
-/*MemPort Hack Code Begine*******************************************/
-void ExprEngine::processEndMemPort(NodeBuilderContext& BC) {
-  StateMgr.EndPath(BC.Pred->getState());
-  ExplodedNodeSet Dst;
-  getCheckerManager().runCheckersForEndPath(BC, Dst, *this);
-  Engine.enqueueEndOfFunction(Dst);
-}
-/*MemPort Hack Code Begine*******************************************/
 
 /// ProcessSwitch - Called by CoreEngine.  Used to generate successor
 ///  nodes by processing the 'effects' of a switch statement.
@@ -1452,242 +1424,6 @@ void ExprEngine::processSwitch(SwitchNodeBuilder& builder) {
 
   builder.generateDefaultCaseNode(DefaultSt);
 }
-
-/*MemPort Hack Code Begin************************************************************/
-void ExprEngine::processSwitchMemPort(SwitchNodeBuilder& builder) {
-  typedef SwitchNodeBuilder::iterator iterator;
-  ProgramStateRef state = builder.getState();
-  const Expr *CondE = builder.getCondition();
-  SVal  CondV_untested = state->getSVal(CondE, builder.getLocationContext());
-
-  if (CondV_untested.isUndef()) {
-    //ExplodedNode* N = builder.generateDefaultCaseNode(state, true);
-    // FIXME: add checker
-    //UndefBranches.insert(N);
-
-    return;
-  }
-  DefinedOrUnknownSVal CondV = cast<DefinedOrUnknownSVal>(CondV_untested);
-
-  ProgramStateRef DefaultSt = state;
-  
-  iterator I = builder.begin(), EI = builder.end();
-  bool defaultIsFeasible = I == EI;
-
-    /*MemPort Hack Begin************************************************/
-    //std::cout << "MemPort ProcessSwitch!" << std::endl;
-    //std::cout << "defaultIsFeasible = " << defaultIsFeasible << std::endl;
-    //if (I.getBlock())
-    //    std::cout << "builder.begin_ID = " << I.getBlock()->getBlockID() << std::endl;
-    //if (EI.getBlock())
-    //    std::cout << "builder.end_ID = " << EI.getBlock()->getBlockID() << std::endl;
-    /*MemPort Hack End**************************************************/
-
-  for ( ; I != EI; ++I) {
-
-      /*MemPort Hack Begin************************************************/
-      std::cout << "$$$ SwitchNodeBlr->BlockID = " << I.getBlock()->getBlockID() << std::endl;
-      if(I.getBlock()) {
-        const CFGBlock *B = I.getBlock();
-        CFGBlock *B2;
-        B2 = const_cast<CFGBlock *>(B);
-        B2->setSwitchJumpFlag(true);
-        B = const_cast<CFGBlock *>(B2);
-      }
-      /*MemPort Hack End**************************************************/
-
-    // Successor may be pruned out during CFG construction.
-    if (!I.getBlock())
-      continue;
-    
-    const CaseStmt *Case = I.getCase();
-
-    // Evaluate the LHS of the case value.
-    llvm::APSInt V1 = Case->getLHS()->EvaluateKnownConstInt(getContext());
-    assert(V1.getBitWidth() == getContext().getTypeSize(CondE->getType()));
-
-    // Get the RHS of the case, if it exists.
-    llvm::APSInt V2;
-    if (const Expr *E = Case->getRHS())
-      V2 = E->EvaluateKnownConstInt(getContext());
-    else
-      V2 = V1;
-
-    // FIXME: Eventually we should replace the logic below with a range
-    //  comparison, rather than concretize the values within the range.
-    //  This should be easy once we have "ranges" for NonLVals.
-
-    do {
-      nonloc::ConcreteInt CaseVal(getBasicVals().getValue(V1));
-      DefinedOrUnknownSVal Res = svalBuilder.evalEQ(DefaultSt ? DefaultSt : state,
-                                               CondV, CaseVal);
-
-      // Now "assume" that the case matches.
-      if (ProgramStateRef stateNew = state->assume(Res, true)) {
-        //builder.generateCaseStmtNode(I, stateNew);
-
-        // If CondV evaluates to a constant, then we know that this
-        // is the *only* case that we can take, so stop evaluating the
-        // others.
-        if (isa<nonloc::ConcreteInt>(CondV)) {
-          builder.generateCaseStmtNode(I, stateNew);
-          return;
-        }
-      }
-
-      // Now "assume" that the case doesn't match.  Add this state
-      // to the default state (if it is feasible).
-      if (DefaultSt) {
-        if (ProgramStateRef stateNew = DefaultSt->assume(Res, false)) {
-          defaultIsFeasible = true;
-          DefaultSt = stateNew;
-        }
-        else {
-          defaultIsFeasible = false;
-          DefaultSt = NULL;
-        }
-      }
-
-      // Concretize the next value in the range.
-      if (V1 == V2)
-        break;
-
-      ++V1;
-      assert (V1 <= V2);
-
-    } while (true);
-  }
-
-  bool isGenerateDefaultNode = true;
-  
-  if (!defaultIsFeasible) {
-    isGenerateDefaultNode = false;
-    //return;
-  }
-
-  // If we have switch(enum value), the default branch is not
-  // feasible if all of the enum constants not covered by 'case:' statements
-  // are not feasible values for the switch condition.
-  //
-  // Note that this isn't as accurate as it could be.  Even if there isn't
-  // a case for a particular enum value as long as that enum value isn't
-  // feasible then it shouldn't be considered for making 'default:' reachable.
-  const SwitchStmt *SS = builder.getSwitch();
-  const Expr *CondExpr = SS->getCond()->IgnoreParenImpCasts();
-  if (CondExpr->getType()->getAs<EnumType>()) {
-    if (SS->isAllEnumCasesCovered()) {
-      isGenerateDefaultNode = false;
-      //return;
-    }
-  }
-
-  if(isGenerateDefaultNode)
-    builder.generateDefaultCaseNode(DefaultSt);
-  
-
-  //typedef SwitchNodeBuilder::iterator iterator;
-  state = builder.getState();
-  CondE = builder.getCondition();
-  CondV_untested = state->getSVal(CondE, builder.getLocationContext());
-
-  if (CondV_untested.isUndef()) {
-    //ExplodedNode* N = builder.generateDefaultCaseNode(state, true);
-    // FIXME: add checker
-    //UndefBranches.insert(N);
-
-    return;
-  }
-  CondV = cast<DefinedOrUnknownSVal>(CondV_untested);
-
-  //ProgramStateRef DefaultSt = state;
-  
-  I = builder.begin(); EI = builder.end();
-  //defaultIsFeasible = I == EI;
-
-  for ( ; I != EI; ++I) {
-    // Successor may be pruned out during CFG construction.
-    if (!I.getBlock())
-      continue;
-    
-    const CaseStmt *Case = I.getCase();
-
-    // Evaluate the LHS of the case value.
-    llvm::APSInt V1 = Case->getLHS()->EvaluateKnownConstInt(getContext());
-    assert(V1.getBitWidth() == getContext().getTypeSize(CondE->getType()));
-
-    // Get the RHS of the case, if it exists.
-    llvm::APSInt V2;
-    if (const Expr *E = Case->getRHS())
-      V2 = E->EvaluateKnownConstInt(getContext());
-    else
-      V2 = V1;
-
-    // FIXME: Eventually we should replace the logic below with a range
-    //  comparison, rather than concretize the values within the range.
-    //  This should be easy once we have "ranges" for NonLVals.
-
-    do {
-      nonloc::ConcreteInt CaseVal(getBasicVals().getValue(V1));
-      DefinedOrUnknownSVal Res = svalBuilder.evalEQ(DefaultSt ? DefaultSt : state,
-                                               CondV, CaseVal);
-
-      // Now "assume" that the case matches.
-      if (ProgramStateRef stateNew = state->assume(Res, true)) {
-        builder.generateCaseStmtNode(I, stateNew);
-
-        // If CondV evaluates to a constant, then we know that this
-        // is the *only* case that we can take, so stop evaluating the
-        // others.
-        if (isa<nonloc::ConcreteInt>(CondV))
-          return;
-      }
-
-      // Now "assume" that the case doesn't match.  Add this state
-      // to the default state (if it is feasible).
-      //if (DefaultSt) {
-      //  if (ProgramStateRef stateNew = DefaultSt->assume(Res, false)) {
-      //    defaultIsFeasible = true;
-      //    DefaultSt = stateNew;
-      //  }
-      //  else {
-      //    defaultIsFeasible = false;
-      //    DefaultSt = NULL;
-      //  }
-      //}
-
-      // Concretize the next value in the range.
-      if (V1 == V2)
-        break;
-
-      ++V1;
-      assert (V1 <= V2);
-
-    } while (true);
-  }
-
-  //if (!defaultIsFeasible)
-  //  return;
-
-  return;
-
-  // If we have switch(enum value), the default branch is not
-  // feasible if all of the enum constants not covered by 'case:' statements
-  // are not feasible values for the switch condition.
-  //
-  // Note that this isn't as accurate as it could be.  Even if there isn't
-  // a case for a particular enum value as long as that enum value isn't
-  // feasible then it shouldn't be considered for making 'default:' reachable.
-  //const SwitchStmt *SS = builder.getSwitch();
-  //const Expr *CondExpr = SS->getCond()->IgnoreParenImpCasts();
-  //if (CondExpr->getType()->getAs<EnumType>()) {
-  //  if (SS->isAllEnumCasesCovered())
-  //    return;
-  //}
-
-  //builder.generateDefaultCaseNode(DefaultSt);
-}
-/*MemPort Hack Code End************************************************************/
-
 
 //===----------------------------------------------------------------------===//
 // Transfer functions: Loads and stores.

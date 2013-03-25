@@ -310,15 +310,6 @@ class CFGBlock {
   };
 
 
-    /*MemPort Hack Code BEGIN**************************************************/
-    bool BranchJumpFlag;
-    bool SwitchJumpFlag;
-    int isEndBranchBlockJumpFlag;   //2: isn't the son block of a branch block(default)
-                                    //0: is the left son block(else block) of a branch block
-                                    //1: is the right son block(then block) of a branch block
-    /*MemPort Hack Code END****************************************************/
-
-
   /// Stmts - The set of statements in the basic block.
   ElementList Elements;
 
@@ -362,11 +353,10 @@ class CFGBlock {
   CFG *Parent;
 
 public:
-  /*MemPort Hack Begin**************************************************/
   explicit CFGBlock(unsigned blockid, BumpVectorContext &C, CFG *parent)
     : Elements(C), Label(NULL), Terminator(NULL), LoopTarget(NULL), 
       BlockID(blockid), Preds(C, 1), Succs(C, 1), HasNoReturnElement(false),
-      Parent(parent), BranchJumpFlag(false), SwitchJumpFlag(false), isEndBranchBlockJumpFlag(2) {}
+      Parent(parent) {}
   ~CFGBlock() {}
 
   // Statement iterators
@@ -557,18 +547,6 @@ public:
     *I = CFGAutomaticObjDtor(VD, S);
     return ++I;
   }
-
-
-    /*MemPort Hack Code BEGIN**************************************************/
-    bool getBranchJumpFlag() const { return BranchJumpFlag; }
-    void setBranchJumpFlag(bool v) { BranchJumpFlag = v; }
-
-    bool getSwitchJumpFlag() const { return SwitchJumpFlag; }
-    void setSwitchJumpFlag(bool v) { SwitchJumpFlag = v; }
-
-    int getIsEndBranchBlockJumpFlag() const { return isEndBranchBlockJumpFlag; }
-    void setIsEndBranchBlockJumpFlag(int v) { isEndBranchBlockJumpFlag = v; }
-    /*MemPort Hack Code END****************************************************/
 
 };
 

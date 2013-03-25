@@ -79,18 +79,10 @@ public:
   /// nodes by processing the 'effects' of a switch statement.
   virtual void processSwitch(SwitchNodeBuilder& builder) = 0;
 
-  /*MemPort Hack Code Begin**********************************************************************/
-  virtual void processSwitchMemPort(SwitchNodeBuilder& builder) = 0;
-  /*MemPort Hack Code End**********************************************************************/
-
   /// Called by CoreEngine.  Used to generate end-of-path
   /// nodes when the control reaches the end of a function.
   virtual void processEndOfFunction(NodeBuilderContext& BC) = 0;
   
-  /*MemPort Hack Code Begin**********************************************************************/
-  virtual void processEndMemPort(NodeBuilderContext& BC) = 0;
-  /*MemPort Hack Code End**********************************************************************/
-
   // Generate the entry node of the callee.
   virtual void processCallEnter(CallEnter CE, ExplodedNode *Pred) = 0;
 

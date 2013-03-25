@@ -40,10 +40,10 @@ void YJYBranchChecker::checkPreStmt(const Stmt *DS, CheckerContext &C) const {
     //cout << flush;
 
     // Dump the CFG
-    const LocationContext* LCtx = C.getLocationContext();
-    CFG *cfg_block = LCtx->getCFG();
-    cfg_block->dump(C.getAnalysisManager().getLangOpts(), true);
-    cout << "**** &&&&& (((((( )))))) @@@@@@@@@@@@" << endl;
+    //const LocationContext* LCtx = C.getLocationContext();
+    //CFG *cfg_block = LCtx->getCFG();
+    //cfg_block->dump(C.getAnalysisManager().getLangOpts(), true);
+    //cout << "**** &&&&& (((((( )))))) @@@@@@@@@@@@" << endl;
 
     //const LocationContext* LCtx = C.getLocationContext();
     //SVal sval = state->getSVal(DS, LCtx);

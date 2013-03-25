@@ -326,10 +326,6 @@ void CoreEngine::HandleBlockEntrance(const BlockEntrance &L,
   const LocationContext *LC = Pred->getLocationContext();
   unsigned BlockId = L.getBlock()->getBlockID();
 
-  /*MemPort Hack Code BEGIN**************************************************/
-  //std::cout << "$$ Block_Entrance_ID = " << BlockId << std::endl;
-  /*MemPort Hack Code END****************************************************/
-
   BlockCounter Counter = WList->getBlockCounter();
   Counter = BCounterFactory.IncrementCount(Counter, LC->getCurrentStackFrame(),
                                            BlockId);
@@ -345,30 +341,9 @@ void CoreEngine::HandleBlockEntrance(const BlockEntrance &L,
 }
 
 void CoreEngine::HandleBlockExit(const CFGBlock * B, ExplodedNode *Pred) {
-   
-
-    /*MemPort Hack Code BEGIN**************************************************/
-    std::cout << "@@@@@@@ BlockID = " << B->getBlockID() << std::endl;
-    std::cout << "@@@@@@@ Block_BranchJumpFlag = " << B->getBranchJumpFlag() << std::endl;
-    std::cout << "@@@@@@@ Block_isEndBranchBlockJumpFlag = " << B->getIsEndBranchBlockJumpFlag() << std::endl;
-    std::cout << "@@@@@@@ Block_SwitchJumpFlag = " << B->getSwitchJumpFlag() << std::endl;
-
-    if(!B->getTerminator() && B->getIsEndBranchBlockJumpFlag() == 0) {
-        std::cout << "##### HERE!" << std::endl;
-        NodeBuilderContext BuilderCtx(*this, B, Pred);
-        //SubEng.processEndOfFunction(BuilderCtx);
-        SubEng.processEndMemPort(BuilderCtx);
-        return;
-    } 
-
-    if(B->getSwitchJumpFlag()) {
-        NodeBuilderContext BuilderCtx(*this, B, Pred);
-        //SubEng.processEndOfFunction(BuilderCtx);
-        SubEng.processEndMemPort(BuilderCtx);
-        return;
-    }
-    /*MemPort Hack Code END****************************************************/
-
+    /*MemPort Hack Code Begin******************************************************************************/
+        std::cout << "@@@ BlockID = " << B->getBlockID() << std::endl;
+    /*MemPort Hack Code End******************************************************************************/
 
   if (const Stmt *Term = B->getTerminator()) {
     switch (Term->getStmtClass()) {
@@ -414,9 +389,6 @@ void CoreEngine::HandleBlockExit(const CFGBlock * B, ExplodedNode *Pred) {
         return;
 
       case Stmt::ForStmtClass:
-        /*MemPort Hack Code Begin***************************************************/
-        std::cout << "ForStmt!" << std::endl;
-        /*MemPort Hack Code End***************************************************/
         HandleBranch(cast<ForStmt>(Term)->getCond(), Term, B, Pred);
         return;
 
@@ -459,20 +431,7 @@ void CoreEngine::HandleBlockExit(const CFGBlock * B, ExplodedNode *Pred) {
       case Stmt::SwitchStmtClass: {
         SwitchNodeBuilder builder(Pred, B, cast<SwitchStmt>(Term)->getCond(),
                                     this);
-
-
-        /*MemPort Hack Code BEGIN**************************************************/
-        //SubEng.processSwitch(builder);
-        SubEng.processSwitchMemPort(builder);
-        
-        std::cout << "SwitchStmt_size = " << B->succ_size() << std::endl;
-        for(int i = 0; i < B->succ_size(); i++) {
-            //(*(B->succ_begin()+i))->setSwitchJumpFlag(true);
-            std::cout << (*(B->succ_begin()+i))->getBlockID() << ", ";
-        }
-        std::cout << std::endl;
-        /*MemPort Hack Code END****************************************************/
-
+        SubEng.processSwitch(builder);
         return;
       }
 
@@ -496,32 +455,6 @@ void CoreEngine::HandleBranch(const Stmt *Cond, const Stmt *Term,
   ExplodedNodeSet Dst;
   SubEng.processBranch(Cond, Term, Ctx, Pred, Dst,
                        *(B->succ_begin()), *(B->succ_begin()+1));
-  
-
-    /*MemPort Hack Code Begin**************************************************/
-    //std::cout << "BlockID = " << B->getBlockID() << std::endl;
-    //std::cout << "BLock_succ_ID = " << (*(B->succ_begin()))->getBlockID() << std::endl;
-    //std::cout << "BLock_succ+1_ID = " << (*(B->succ_begin()+1))->getBlockID() << std::endl;
-    //std::cout << "BLock_succ_size() = " << B->succ_size() << std::endl;
-
-    const CFGBlock *B_const_then, *B_const_else;
-    CFGBlock *B_then, *B_else;
-    B_const_then = *(B->succ_begin());
-    B_const_else = *(B->succ_begin()+1);
-    B_then = const_cast<CFGBlock *>(B_const_then);
-    B_else = const_cast<CFGBlock *>(B_const_else);
-    if(B->getIsEndBranchBlockJumpFlag() == 2 || B->getIsEndBranchBlockJumpFlag() == 1) {
-        // B isn't a son of an if-block OR B itself is an else-block(right son)
-        B_then->setIsEndBranchBlockJumpFlag(0);
-        B_else->setIsEndBranchBlockJumpFlag(1);
-    } else if(B->getIsEndBranchBlockJumpFlag() == 0) { // B itself is a then-block(left son)
-        B_then->setIsEndBranchBlockJumpFlag(0);
-        B_else->setIsEndBranchBlockJumpFlag(0);
-    }
-    B_const_then = const_cast<CFGBlock *>(B_then);
-    B_const_else = const_cast<CFGBlock *>(B_else);
-    /*MemPort Hack Code End****************************************************/
-
   
   // Enqueue the new frontier onto the worklist.
   enqueue(Dst);
