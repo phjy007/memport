@@ -1264,7 +1264,6 @@ void ExprEngine::processBranch(const Stmt *Condition, const Stmt *Term,
       else
         builder.markInfeasible(false);
     }
-
   }
   currentBuilderContext = 0;
 }

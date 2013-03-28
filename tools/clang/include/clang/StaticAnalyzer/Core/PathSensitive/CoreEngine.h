@@ -22,6 +22,7 @@
 #include "clang/StaticAnalyzer/Core/PathSensitive/WorkList.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/BlockCounter.h"
 #include "llvm/ADT/OwningPtr.h"
+#include <stack>
 
 namespace clang {
 
@@ -30,6 +31,7 @@ class ProgramPointTag;
 namespace ento {
 
 class NodeBuilder;
+class CTSElement;
 
 //===----------------------------------------------------------------------===//
 /// CoreEngine - Implements the core logic of the graph-reachability
@@ -88,6 +90,12 @@ private:
   /// (This data is owned by AnalysisConsumer.)
   FunctionSummariesTy *FunctionSummaries;
 
+  
+  /*MemPort Hack Code Begin**********************************************************/
+  std::stack<CTSElement *>* CTStack;
+  /*MemPort Hack Code End**********************************************************/
+
+
   void generateNode(const ProgramPoint &Loc,
                     ProgramStateRef State,
                     ExplodedNode *Pred);
@@ -99,6 +107,10 @@ private:
 
   void HandleBranch(const Stmt *Cond, const Stmt *Term, const CFGBlock *B,
                     ExplodedNode *Pred);
+
+  /*MemPort Hack Code Begin**********************************************************/
+  unsigned FirstCommonTerminalSearch(const CFGBlock * B);
+  /*MemPort Hack Code End**********************************************************/
 
 private:
   CoreEngine(const CoreEngine&); // Do not implement.
@@ -115,11 +127,21 @@ public:
       WList(WorkList::makeDFS()),
       BCounterFactory(G->getAllocator()),
       AnalyzedCallees(VisitedCallees),
-      FunctionSummaries(FS){}
+    /*MemPort Hack Code Begin**********************************************************/
+      CTStack(new std::stack<CTSElement*>()),
+    /*MemPort Hack Code End**********************************************************/
+      FunctionSummaries(FS){ }
 
   ~CoreEngine() {
     delete WList;
+    /*MemPort Hack Code Begin**********************************************************/
+    delete CTStack;
+    /*MemPort Hack Code End**********************************************************/
   }
+
+    /*MemPort Hack Code Begin**********************************************************/
+        std::stack<CTSElement*>* getCTStack() { return CTStack; }
+    /*MemPort Hack Code End**********************************************************/
 
   /// getGraph - Returns the exploded graph.
   ExplodedGraph& getGraph() { return *G.get(); }
@@ -535,6 +557,27 @@ public:
     return Pred->getLocationContext();
   }
 };
+
+
+/*MemPort Hack Code Begin*************************************************/
+class  CTSElement {
+private:
+    unsigned blockID;
+    int branchPath;
+
+public:
+    CTSElement(unsigned id, int path) 
+        : blockID(id), branchPath(path) {
+    }
+
+    //~CTSElement() { }
+
+    unsigned getBlockID() { return blockID; }
+
+    int getBranchPath() { return branchPath; }
+};
+/*MemPort Hack Code End*************************************************/
+
 
 } // end ento namespace
 } // end clang namespace

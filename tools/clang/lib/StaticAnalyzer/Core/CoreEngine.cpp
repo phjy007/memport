@@ -23,6 +23,8 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/Statistic.h"
 #include <iostream>
+#include <stack>
+#include <verctor>
 
 using namespace clang;
 using namespace ento;
@@ -343,6 +345,11 @@ void CoreEngine::HandleBlockEntrance(const BlockEntrance &L,
 void CoreEngine::HandleBlockExit(const CFGBlock * B, ExplodedNode *Pred) {
     /*MemPort Hack Code Begin******************************************************************************/
         std::cout << "@@@ BlockID = " << B->getBlockID() << std::endl;
+        //if(B->getTerminator() && 
+        //   (B->getTerminator()->getStmtClass() == Stmt:IfStmtClass || 
+        //    B->getTerminator()->getStmtClass() == Stmt:SwitchStmtClass)) {
+        //    unsigned a = FirstCommonTerminalSearch(B);
+        //}
     /*MemPort Hack Code End******************************************************************************/
 
   if (const Stmt *Term = B->getTerminator()) {
@@ -432,6 +439,9 @@ void CoreEngine::HandleBlockExit(const CFGBlock * B, ExplodedNode *Pred) {
         SwitchNodeBuilder builder(Pred, B, cast<SwitchStmt>(Term)->getCond(),
                                     this);
         SubEng.processSwitch(builder);
+        /*MemPort Hack Code Begin***************************************************/
+        unsigned a = FirstCommonTerminalSearch(B);
+        /*MemPort Hack Code End***************************************************/
         return;
       }
 
@@ -456,9 +466,78 @@ void CoreEngine::HandleBranch(const Stmt *Cond, const Stmt *Term,
   SubEng.processBranch(Cond, Term, Ctx, Pred, Dst,
                        *(B->succ_begin()), *(B->succ_begin()+1));
   
+    /*MemPort Hack Code Begin**********************************************************/
+        std::stack<CTSElement*> *CTS = getCTStack();
+        const CFGBlock *b = *(B->succ_begin());
+        CTS->push(new CTSElement(b->getBlockID(), 2));
+        b = *(B->succ_begin()+1);
+        CTS->push(new CTSElement(b->getBlockID(), 2));
+        while(!CTS->empty()) {
+            CTSElement *e = CTS->top();
+            CTS->pop();
+            std::cout << "### pop-> " << e->getBlockID() << std::endl;
+        }
+
+        unsigned commonTerminal = FirstCommonTerminalSearch(B);      
+    /*MemPort Hack Code End**********************************************************/
+
   // Enqueue the new frontier onto the worklist.
   enqueue(Dst);
 }
+
+/*MemPort Hack Code Begin**********************************************************/
+unsigned CoreEngine::FirstCommonTerminalSearch(const CFGBlock * B) {
+    int totalPath;
+    unsigned firstCommonTerminalBlockID;
+    std::vector<unsigned> lq, rq;
+    unsigned parentBlockID = B->getBlockID();
+    totalPath = B->succ_size();
+    CFGBlock *lb, *rb;
+    lb = *(B->succ_begin());
+    rb = *(B->succ_begin() + totalPath - 1);
+    lq.push_back(lb->getBlockID());
+    rq.push_back(rb->getBlockID());
+    std::cout << "lq->push = " << lb->getBlockID() << std::endl;
+    std::cout << "rq->push = " << rb->getBlockID() << std::endl;
+    while(true) {
+        CFGBlock *lb_succ_left, *rb_succ_right;
+        lb_succ_left = *(lb->succ_begin());
+        rb_succ_right = *(rb->succ_begin() + rb->succ_size() - 1);
+
+        for(std::vector<unsigned>::iterator iter=lq.begin(); iter!=lq.end(); iter++) {
+            if(*iter == lb_succ_left->getBlockID()) {
+                std::cout << "!!! iter == lb_succ_left->getBlockID() -> " << *iter << std::endl;
+                lb_succ_left = *(lb->succ_begin() + lb->succ_size() - 1);
+                std::cout << "PARENT = " << lb->getBlockID() << std::endl;
+                break;
+            }
+        }
+
+        lq.push_back(lb_succ_left->getBlockID());
+        rq.push_back(rb_succ_right->getBlockID());
+        std::cout << "lq->push = " << lb_succ_left->getBlockID() << std::endl;
+        std::cout << "rq->push = " << rb_succ_right->getBlockID() << std::endl;
+        bool flag_findCT = false;
+        for(std::vector<unsigned>::iterator iter=lq.begin(); iter!=lq.end(); iter++) {
+            for(std::vector<unsigned>::iterator jter=rq.begin(); jter!=rq.end(); jter++) {
+                if(*iter == *jter) {
+                    firstCommonTerminalBlockID = *iter;
+                    flag_findCT = true;
+                    break;
+                }
+            }
+            if(flag_findCT)
+                break;
+        }
+        if(flag_findCT)
+            break;
+        lb = lb_succ_left;
+        rb = rb_succ_right;
+    }
+    std::cout << "firstCommonTerminalBlockID = " << firstCommonTerminalBlockID << std::endl;
+    return (unsigned)0;
+}
+/*MemPort Hack Code End**********************************************************/
 
 void CoreEngine::HandlePostStmt(const CFGBlock *B, unsigned StmtIdx, 
                                   ExplodedNode *Pred) {

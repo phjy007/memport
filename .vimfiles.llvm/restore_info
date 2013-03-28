@@ -6,5 +6,7 @@ badd tools/clang/include/clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h
 badd tools/clang/lib/StaticAnalyzer/Core/ExprEngine.cpp
 badd tools/clang/include/clang/Analysis/CFG.h
 badd tools/clang/lib/Analysis/CFG.cpp
-edit tools/clang/lib/StaticAnalyzer/Core/CoreEngine.cpp
-call cursor(350,3)
+badd tools/clang/include/clang/StaticAnalyzer/Core/PathSensitive/SubEngine.h
+badd tools/clang/lib/Frontend/CompilerInvocation.cpp
+edit tools/clang/lib/StaticAnalyzer/Core/ExprEngine.cpp
+call cursor(1252,5)
